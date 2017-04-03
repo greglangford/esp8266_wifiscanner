@@ -32,7 +32,7 @@ void ICACHE_FLASH_ATTR wifi_handle_event_cb(System_Event_t	*evt) {
       struct espconn *pespconn;
       static ip_addr_t ip;
 
-      espconn_gethostbyname(pespconn, "www.greglangford.co.uk", &ip, user_esp_platform_dns_found);
+      espconn_gethostbyname(pespconn, "www.google.co.uk", &ip, user_esp_platform_dns_found);
 
       break;
 
