@@ -6,8 +6,12 @@ LDFLAGS = -Teagle.app.v6.ld
 main-0x00000.bin: main
 	esptool.py elf2image $^
 
-main: main.o uart.o
+main: main.o uart.o gpio16.o
+
 main.o: main.c
 
 uart: uart.o
 uart.o: uart.c
+
+gpio16: gpio16.o
+gpio16.o: gpio16.c

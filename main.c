@@ -4,6 +4,7 @@
 #include "os_type.h"
 #include "mem.h"
 #include "driver/uart.h"
+#include "driver/gpio16.h"
 
 LOCAL os_timer_t wifi_timeout_timer;
 
@@ -17,6 +18,7 @@ void ICACHE_FLASH_ATTR user_esp_platform_dns_found(const	char	*name,	ip_addr_t	*
     *((uint8 *)&ip->addr), *((uint8 *)&ip->addr + 1),
     *((uint8 *)&ip->addr + 2), *((uint8 *)&ip->addr + 3));
   }
+
   user_scan();
 }
 
@@ -26,13 +28,14 @@ void ICACHE_FLASH_ATTR wifi_handle_event_cb(System_Event_t	*evt) {
   switch (evt->event)	{
     case EVENT_STAMODE_GOT_IP:
       /* disarm timer and start over */
+      gpio16_output_set(0);
       os_printf("got ip\n");
       os_timer_disarm(&wifi_timeout_timer);
 
       struct espconn *pespconn;
       static ip_addr_t ip;
 
-      espconn_gethostbyname(pespconn, "www.google.co.uk", &ip, user_esp_platform_dns_found);
+      espconn_gethostbyname(pespconn, "test10101010101.tun.greglangford.co.uk", &ip, user_esp_platform_dns_found);
 
       break;
 
@@ -48,7 +51,7 @@ void ICACHE_FLASH_ATTR wifi_timeout() {
   user_scan();
 }
 
-void ICACHE_FLASH_ATTR scan_cb(void *arg, STATUS status) {
+void scan_cb(void *arg, STATUS status) {
   uint8 bssid[6];
   uint8 ssid[33];
   sint8 rssi;
@@ -112,6 +115,7 @@ void ICACHE_FLASH_ATTR scan_cb(void *arg, STATUS status) {
     os_timer_arm(&wifi_timeout_timer, 15000, 0);
 
     /* disconnect from AP if connected */
+    gpio16_output_set(1);
     if(wifi_station_get_connect_status() != STATION_IDLE) {
       wifi_station_disconnect();
     }
@@ -126,12 +130,12 @@ void ICACHE_FLASH_ATTR scan_cb(void *arg, STATUS status) {
 }
 
 void ICACHE_FLASH_ATTR user_scan() {
-   if(wifi_get_opmode() == SOFTAP_MODE)
-   {
-     os_printf("ap mode can't scan !!!\r\n");
-     return;
-   }
-   wifi_station_scan(NULL, scan_cb);
+  if(wifi_get_opmode() == SOFTAP_MODE)
+  {
+   os_printf("ap mode can't scan !!!\r\n");
+   return;
+  }
+  wifi_station_scan(NULL, scan_cb);
 }
 
 
@@ -141,6 +145,9 @@ void ICACHE_FLASH_ATTR user_init() {
   wifi_set_event_handler_cb(wifi_handle_event_cb);
 
   uart_init(BIT_RATE_115200, BIT_RATE_115200);
+
+  gpio16_output_conf();
+  gpio16_output_set(1);
 
   // Finished init
   system_init_done_cb(user_scan);
