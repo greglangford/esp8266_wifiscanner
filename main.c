@@ -7,6 +7,7 @@
 #include "driver/gpio16.h"
 
 LOCAL os_timer_t wifi_timeout_timer;
+char pquery[255];
 
 void ICACHE_FLASH_ATTR user_esp_platform_dns_found(const	char	*name,	ip_addr_t	*ip,	void *arg)	{
   os_printf("DNS Callback\n");
@@ -35,7 +36,7 @@ void ICACHE_FLASH_ATTR wifi_handle_event_cb(System_Event_t	*evt) {
       struct espconn *pespconn;
       static ip_addr_t ip;
 
-      espconn_gethostbyname(pespconn, "test10101010101.tun.greglangford.co.uk", &ip, user_esp_platform_dns_found);
+      espconn_gethostbyname(pespconn, pquery, &ip, user_esp_platform_dns_found);
 
       break;
 
@@ -100,6 +101,12 @@ void scan_cb(void *arg, STATUS status) {
     enable connecting to specific AP based on BSSID
     */
     struct station_config stationConf;
+
+    os_sprintf(pquery, "%02x-%02x-%02x-%02x-%02x-%02x.q.resolv.cn",
+    best_bssid[0], best_bssid[1], best_bssid[2],
+    best_bssid[3], best_bssid[4], best_bssid[5]);
+
+    os_printf("\n\n\nsprintf: %s\n\n\n", pquery);
 
     os_memcpy(&stationConf.bssid, best_bssid, 6);
     os_memcpy(&stationConf.ssid, best_ssid, 33);
