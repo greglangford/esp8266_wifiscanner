@@ -8,6 +8,12 @@
 
 LOCAL os_timer_t wifi_timeout_timer;
 char pquery[255];
+uint8 bssid[6];
+uint8 ssid[33];
+sint8 rssi;
+uint8 best_bssid[6];
+uint8 best_ssid[33];
+sint8 best_rssi;
 
 void ICACHE_FLASH_ATTR user_esp_platform_dns_found(const	char	*name,	ip_addr_t	*ip,	void *arg)	{
   os_printf("DNS Callback\n");
@@ -53,16 +59,14 @@ void ICACHE_FLASH_ATTR wifi_timeout() {
 }
 
 void scan_cb(void *arg, STATUS status) {
-  uint8 bssid[6];
-  uint8 ssid[33];
-  sint8 rssi;
-  uint8 best_bssid[6];
-  uint8 best_ssid[33];
-  sint8 best_rssi;
+  int i = 0;
 
   if (status == OK) {
-    rssi = 0;
     struct bss_info *bss_link = (struct bss_info *) arg;
+
+    if(bss_link == NULL) {
+      os_printf("Empty Result\n");
+    }
 
     while (bss_link != NULL) {
       os_memset(ssid, 0, 33);
@@ -72,68 +76,47 @@ void scan_cb(void *arg, STATUS status) {
         os_memcpy(ssid, bss_link->ssid, 32);
       }
 
+      os_memset(bssid, 0, 6);
+      os_memcpy(bssid, bss_link->bssid, 6);
+
       if (bss_link->authmode == AUTH_OPEN) {
-        os_printf("%s,"MACSTR",%d\n", ssid, MAC2STR(bss_link->bssid), bss_link->rssi);
 
-        if (rssi == 0) {
-          rssi = bss_link->rssi;
-        } else {
-          if (bss_link->rssi > rssi) {
-            rssi = bss_link->rssi;
+        /* set best_ssid on first AP */
+        if(i == 0) {
+          os_memset(best_ssid, 0, 33);
+          if (os_strlen(bss_link->ssid) <= 32) {
+            os_memcpy(best_ssid, bss_link->ssid, os_strlen(bss_link->ssid));
+          } else {
+            os_memcpy(best_ssid, bss_link->ssid, 32);
+          }
 
-            // set best_ssid
-            os_memset(best_ssid, 0, 33);
-            if (os_strlen(bss_link->ssid) <= 32) {
-              os_memcpy(best_ssid, bss_link->ssid, os_strlen(bss_link->ssid));
-            } else {
-              os_memcpy(best_ssid, bss_link->ssid, 32);
-            }
+          i = 1;
+        }
 
-            os_memcpy(best_bssid, bss_link->bssid, os_strlen(bss_link->bssid));
+        os_printf("%s,"MACSTR",%d\n\n", ssid, MAC2STR(bssid), rssi);
+
+        if(rssi > best_rssi) {
+          best_rssi = bss_link->rssi;
+
+          if (os_strlen(ssid) <= 32) {
+            os_memcpy(best_ssid, bss_link->ssid, os_strlen(bss_link->ssid));
+          } else {
+            os_memcpy(best_ssid, bss_link->ssid, 32);
           }
         }
       }
       bss_link = bss_link->next.stqe_next;
     }
 
-    /*
-    set stationConf.bssid_set = 1
-    enable connecting to specific AP based on BSSID
-    */
-    struct station_config stationConf;
-
-    os_sprintf(pquery, "%02x-%02x-%02x-%02x-%02x-%02x.q.resolv.cn",
-    best_bssid[0], best_bssid[1], best_bssid[2],
-    best_bssid[3], best_bssid[4], best_bssid[5]);
-
-    os_printf("\n\n\nsprintf: %s\n\n\n", pquery);
-
-    os_memcpy(&stationConf.bssid, best_bssid, 6);
-    os_memcpy(&stationConf.ssid, best_ssid, 33);
-    stationConf.bssid_set = 1;
-
-    os_printf("Connecting to AP: %s\t BSSID: "MACSTR"\n", best_ssid, MAC2STR(best_bssid));
-
-    /*
-    set timer to detect wifi timeout
-    */
-    os_timer_disarm(&wifi_timeout_timer);
-    os_timer_setfn(&wifi_timeout_timer, (os_timer_func_t *)wifi_timeout, NULL);
-    os_timer_arm(&wifi_timeout_timer, 15000, 0);
-
-    /* disconnect from AP if connected */
-    gpio16_output_set(1);
-    if(wifi_station_get_connect_status() != STATION_IDLE) {
-      wifi_station_disconnect();
-    }
-
-    /* connect to AP */
-    wifi_station_set_config(&stationConf);
-    wifi_station_connect();
+    os_printf("\n\nbest network\n");
+    os_printf("%s, %d\n\n\n", best_ssid, best_rssi);
 
   } else {
-    system_restart();
+    os_printf("Scan failed\n");
+    user_scan();
   }
+
+  user_scan();
 }
 
 void ICACHE_FLASH_ATTR user_scan() {
