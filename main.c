@@ -5,6 +5,7 @@
 #include "mem.h"
 #include "driver/uart.h"
 #include "driver/gpio16.h"
+#include "string.h"
 
 LOCAL os_timer_t wifi_timeout_timer;
 char pquery[255];
@@ -17,14 +18,11 @@ void ICACHE_FLASH_ATTR user_esp_platform_dns_found(const	char	*name,	ip_addr_t	*
   if(ip == NULL) {
     os_printf("nslookup failed\n");
   } else {
-    os_printf("QUERY: %s\tDST: %d.%d.%d.%d\n",
+    os_printf("DNS ANSWER: %s\tDST: %d.%d.%d.%d\n",
     name,
     *((uint8 *)&ip->addr), *((uint8 *)&ip->addr + 1),
     *((uint8 *)&ip->addr + 2), *((uint8 *)&ip->addr + 3));
   }
-
-  gpio16_output_set(1);
-
   user_scan();
 }
 
@@ -42,9 +40,35 @@ void ICACHE_FLASH_ATTR wifi_handle_event_cb(System_Event_t	*evt) {
       static ip_addr_t ip;
 
       /* build dns query */
+      /*
       os_sprintf(pquery, "%02x-%02x-%02x-%02x-%02x-%02x.q.resolv.cn",
       best_bssid[0], best_bssid[1], best_bssid[2],
       best_bssid[3], best_bssid[4], best_bssid[5]);
+      */
+
+      char ssid[33];
+      char hexssid[255];
+      char *ptrhexssid;
+      ptrhexssid = hexssid;
+
+      os_memset(ssid, 0, 33);
+
+      int i;
+
+      for(i = 0; i < sizeof(best_ssid); i++) {
+        ssid[i] = (char) best_ssid[i];
+      }
+
+
+      os_memset(ptrhexssid, 0, 255);
+      string_strtohex(ssid, &ptrhexssid);
+
+      os_memset(pquery, NULL, sizeof(pquery));
+      os_sprintf(pquery, "%s.q.resolv.cn", ptrhexssid);
+
+      os_printf("QUERY: %s\n", pquery);
+
+
 
       espconn_gethostbyname(pespconn, pquery, &ip, user_esp_platform_dns_found);
 
@@ -138,6 +162,7 @@ void scan_cb(void *arg, STATUS status) {
     os_timer_setfn(&wifi_timeout_timer, (os_timer_func_t *)wifi_timeout, NULL);
     os_timer_arm(&wifi_timeout_timer, 15000, 0);
 
+    gpio16_output_set(1);
     wifi_station_disconnect();
     wifi_station_set_config(&stationConf);
     wifi_station_connect();
