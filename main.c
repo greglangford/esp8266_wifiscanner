@@ -12,7 +12,7 @@ char pquery[255];
 uint8 best_bssid[6];
 uint8 best_ssid[33];
 sint8 best_rssi;
-struct station_config stationConf;
+struct station_config *stationConf;
 
 void ICACHE_FLASH_ATTR user_esp_platform_dns_found(const	char	*name,	ip_addr_t	*ip,	void *arg)	{
   if(ip == NULL) {
@@ -86,89 +86,17 @@ void ICACHE_FLASH_ATTR wifi_timeout() {
   user_scan();
 }
 
+void ICACHE_FLASH_ATTR connect_wifi() {
+  os_printf("DONE\n");
+}
+
 void scan_cb(void *arg, STATUS status) {
-  uint8 bssid[6];
-  uint8 ssid[33];
-  uint8 i = 0;
-
-  /* clear persistent variables */
-  os_memset(best_bssid, NULL, os_strlen(best_bssid));
-  os_memset(best_ssid, NULL, os_strlen(best_ssid));
-
   if (status == OK) {
     struct bss_info *bss_link = (struct bss_info *) arg;
-
-    while (bss_link != NULL) {
-      os_memset(ssid, 0, 33);
-      if (os_strlen(bss_link->ssid) <= 32) {
-        os_memcpy(ssid, bss_link->ssid, os_strlen(bss_link->ssid));
-      } else {
-        os_memcpy(ssid, bss_link->ssid, 32);
-      }
-
-      os_memset(bssid, 0, 6);
-      os_memcpy(bssid, bss_link->bssid, 6);
-
-      if (bss_link->authmode == AUTH_OPEN) {
-
-        /* configure best AP to be first AP as default */
-        if(i == 0) {
-          if (os_strlen(bss_link->ssid) <= 32) {
-            os_memcpy(best_ssid, bss_link->ssid, os_strlen(bss_link->ssid));
-          } else {
-            os_memcpy(best_ssid, bss_link->ssid, 32);
-          }
-
-          os_memcpy(best_bssid, bss_link->bssid, 6);
-          best_rssi = bss_link->rssi;
-
-          /* set to 1 ensures that this block does not run again */
-          i = 1;
-        }
-
-        /* show scan results */
-        os_printf("%s,"MACSTR",%d\n", ssid, MAC2STR(bssid), bss_link->rssi);
-
-        /* try and find if link has better rssi */
-        if(bss_link->rssi >= best_rssi) {
-
-          /* must erase previous values otherwise they concatenate */
-          os_memset(best_bssid, NULL, os_strlen(best_bssid));
-          os_memset(best_ssid, NULL, os_strlen(best_ssid));
-
-          best_rssi = bss_link->rssi;
-
-          if (os_strlen(ssid) <= 32) {
-            os_memcpy(best_ssid, bss_link->ssid, os_strlen(bss_link->ssid));
-          } else {
-            os_memcpy(best_ssid, bss_link->ssid, 32);
-          }
-
-          os_memcpy(best_bssid, bss_link->bssid, 6);
-        }
-      }
-      bss_link = bss_link->next.stqe_next;
-    }
-
-    /* display the best network */
-    os_printf("\nbest network\n");
-    os_printf("%s,"MACSTR",%d\n\n", best_ssid, MAC2STR(best_bssid), best_rssi);
-
-    os_memcpy(&stationConf.bssid, best_bssid, 6);
-    os_memcpy(&stationConf.ssid, best_ssid, 33);
-    stationConf.bssid_set = 1;
-
-    os_timer_disarm(&wifi_timeout_timer);
-    os_timer_setfn(&wifi_timeout_timer, (os_timer_func_t *)wifi_timeout, NULL);
-    os_timer_arm(&wifi_timeout_timer, 15000, 0);
-
-    gpio16_output_set(1);
-    wifi_station_disconnect();
-    wifi_station_set_config(&stationConf);
-    wifi_station_connect();
+    scan_elect_network(&bss_link, &stationConf, connect_wifi);
 
   } else {
-    os_printf("scanning failed, trying again\n");
+    os_printf("scanning failed, restarting ...\n");
     system_restart();
   }
 }
