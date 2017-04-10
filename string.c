@@ -24,5 +24,5 @@ void string_strtohex(char str[], char *hexstr[]) {
   }
 
   // copy buf string to hexstr pointer
-  os_sprintf(*hexstr, "%s", buf);
+  os_sprintf(*hexstr, "%s\0", buf);
 }

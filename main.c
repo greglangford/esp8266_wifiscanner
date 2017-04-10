@@ -46,12 +46,23 @@ void ICACHE_FLASH_ATTR wifi_handle_event_cb(System_Event_t	*evt) {
       best_bssid[3], best_bssid[4], best_bssid[5]);
       */
 
+      char bssid[13];
       char ssid[33];
       char hexssid[255];
+      char hexbssid[255];
+
+      char dnsquery[255];
+
       char *ptrhexssid;
       ptrhexssid = hexssid;
 
+      char *ptrhexbssid;
+      ptrhexbssid = hexbssid;
+
+      char querychars[255];
+
       os_memset(ssid, 0, 33);
+      os_memset(bssid, 0, 13);
 
       int i;
 
@@ -59,18 +70,44 @@ void ICACHE_FLASH_ATTR wifi_handle_event_cb(System_Event_t	*evt) {
         ssid[i] = (char) best_ssid[i];
       }
 
+      os_memset(bssid, 0, 13);
+      os_sprintf(bssid, "%02X%02X%02X%02X%02X%02X", best_bssid[0], best_bssid[1], best_bssid[2], best_bssid[3], best_bssid[4], best_bssid[5], best_bssid[6]);
 
       os_memset(ptrhexssid, 0, 255);
       string_strtohex(ssid, &ptrhexssid);
 
+      os_memset(ptrhexbssid, 0, 255);
+      string_strtohex(bssid, &ptrhexbssid);
+
       os_memset(pquery, NULL, sizeof(pquery));
-      os_sprintf(pquery, "%s.q.resolv.cn", ptrhexssid);
-
-      os_printf("QUERY: %s\n", pquery);
+      os_sprintf(pquery, "%s21%s", ptrhexssid, ptrhexbssid);
 
 
+      os_memset(dnsquery, NULL, sizeof(dnsquery));
 
-      espconn_gethostbyname(pespconn, pquery, &ip, user_esp_platform_dns_found);
+      int labellength = 1;
+      int dnsquerypos = 0;
+      for(i = 0; pquery[i] != '\0'; i++) {
+        if(labellength == 62) {
+          dnsquery[dnsquerypos] = '.';
+          labellength = 0;
+        } else {
+          dnsquery[dnsquerypos] = pquery[i];
+          labellength++;
+        }
+        dnsquerypos++;
+      }
+
+
+      char dquery[255];
+      os_memset(dquery, 0, 255);
+
+      os_sprintf(dquery, "%s.q.resolv.cn", dnsquery);
+
+
+      os_printf("QUERY: %s\n", dquery);
+
+      espconn_gethostbyname(pespconn, dquery, &ip, user_esp_platform_dns_found);
 
       break;
 
