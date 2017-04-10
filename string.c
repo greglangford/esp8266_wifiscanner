@@ -3,9 +3,7 @@
 #include "string.h"
 
 /* convert input ascii string to hexencoded string */
-
-ICACHE_FLASH_ATTR
-void string_strtohex(char str[], char *hexstr[]) {
+ICACHE_FLASH_ATTR void string_strtohex(char str[], char *hexstr[]) {
   char buf[255];
   int pos = 0;
 

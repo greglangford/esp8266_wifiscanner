@@ -1,0 +1,1 @@
+void payload_main();
