@@ -51,17 +51,19 @@ void ICACHE_FLASH_ATTR payload_main() {
 
 
   /* this needs fixing so it does not add a . after the last char */
-  int labellength = 0;
-  int i;
-  for(i = 0; querychars[i] != '\0'; i++) {
-    query[i] = querychars[i];
-    labellength++;
+  int i, labellength, querypos;
+  labellength = 0;
+  querypos = 0;
 
+  for(i = 0; querychars[i] != '\0'; i++) {
     if(labellength == 63) {
-      query[i + 1] = '.';
-      labellength = 1;
-      i++;
+      query[querypos] = '.';
+      querypos++;
+      labellength = 0;
     }
+    query[querypos] = querychars[i];
+    labellength++;
+    querypos++;
   }
 
   os_memset(dnsquery, NULL, sizeof(dnsquery));
